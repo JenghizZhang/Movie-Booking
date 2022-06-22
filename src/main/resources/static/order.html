@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Order</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link href="Bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <link href="bootstrap-icons-1.8.1/bootstrap-icons.css" rel="stylesheet">
+    <script src="js/jquery-3.5.1.min.js"></script>
+    <script src="js/jquery.cookie.js"></script>
+    <script src="js/jquery.session.js"></script>
+    <script src="js/jquery-deparam.min.js"></script>
+    <script src="Bootstrap/js/bootstrap.min.js"></script>
+    <script src="js/bar_login.js"></script>
+    <script>
+        $(function () {
+            let user_info = $.deparam(decodeURIComponent($.session.get('userInfo')));
+            let data1 = new FormData();
+            data1.append('username', user_info.ReturnUser.email);
+            $.ajax({
+                type: "post",
+                url: "getorder",
+                contentType: false,
+                processData: false,
+                data: data1,
+                success: (data) => {
+                    console.log(data);
+                    if (data.ReturnStatus.status === 1) {
+                        let order_content = $('#content');
+                        for (let booking of data.OrderHistory.reverse()) {
+                            let type = {adult: 0, senior: 0, child: 0};
+                            let seats = $('<ul id="seats" style="min-height: 8rem;max-height: 8rem;overflow-y: auto;"></ul>');
+                            for (let ticket of booking.Tickets) {
+                                let row_column = ticket.seatId.split('_');
+                                seats.append($('<li class="w-75 mt-1 mb-1"></li>').html('Row' + row_column[0] + 'Seats' + row_column[1]));
+                                if (ticket.type == 1) {
+                                    type.child++;
+                                }
+                                else if (ticket.type == 2) {
+                                    type.adult++;
+                                }
+                                else {
+                                    type.senior++;
+                                }
+                            }
+                            let price
+                            if (booking.Booking.promotions) {
+                                price = (14.99 * type.adult + 7.99 * type.senior + 9.99 * type.child) * (1 - booking.Booking.promotions.promoDiscount / 100) * 1.08;
+                            }
+                            else {
+                                price = (14.99 * type.adult + 7.99 * type.senior + 9.99 * type.child) * 1.08;
+                            }
+                            let orderT = new Date(parseInt(booking.Booking.dateofbooking));
+                            let ShowT = new Date(parseInt(booking.Booking.showSchedule.starttime));
+                            let content = $('<div class="card mt-2 mb-4"></div>').append(
+                                $('<div class="card-body"></div>').append(
+                                    $('<div class="card-title" style="display: flex;justify-content: space-between"></div>').append(
+                                        $('<h4></h4>').html(booking.Booking.showSchedule.movie.title),
+                                        $('<h4></h4>').html('Order Time: ' + orderT.toDateString() + ' ' + orderT.toLocaleTimeString()),
+                                    ),
+                                    $('<div class="row"></div>').append(
+                                        $('<div class="col-2"></div>').append(
+                                            $('<img class="w-100">').attr('src', 'image/' + booking.Booking.showSchedule.movie.trailerPicture),
+                                        ),
+                                        $('<div class="col-10"></div>').append(
+                                            $('<div class="row"></div>').append(
+                                                $('<div class="col-8" style="border-right: 1px solid #ffb569"></div>').append(
+                                                    $('<h5 style="display: flex;justify-content: space-between"></h5>').append(
+                                                        $('<div>Ticket Number:</div>'),
+                                                        $('<div>' + booking.Booking.nooftickets + '</div>'),
+                                                    ),
+                                                    $('<h5 style="display: flex;justify-content: space-between"></h5>').append(
+                                                        $('<div>Adult:' + type.adult + '</div>'),
+                                                        $('<div>Senior:' + type.senior + '</div>'),
+                                                        $('<div>Child:' + type.child + '</div>'),
+                                                    ),
+                                                    $('<h5 style="display: flex;justify-content: space-between"></h5>').append(
+                                                        $('<div>ShowTime:</div>'),
+                                                        $('<div>' + ShowT.toDateString() + ' ' + ShowT.toLocaleTimeString() + '</div>'),
+                                                    ),
+                                                    $('<h5 style="display: flex;justify-content: space-between"></h5>').append(
+                                                        $('<div>Payment Card:</div>'),
+                                                        $('<div>' + '•••• ' + booking.Booking.paymentcard.lastfourdigits + '</div>'),
+                                                    ),
+                                                    $('<h5></h5>').html('Billing Address:<br>' + booking.Booking.address),
+                                                ),
+                                                $('<div class="col-4"></div>').append(
+                                                    $('<h5></h5>').html('Seat:'),
+                                                    seats,
+                                                ),
+                                            ),
+                                            $('<div class="dropdown-divider"></div>'),
+                                            $('<h5 style="display: flex;justify-content: right;color: red"></h5>').html('Total: $' + price.toFixed(2)),
+                                        ),
+                                    ),
+                                )
+                            );
+                            order_content.append(content);
+                        }
+                    }
+                    else {
+                        $('#content').append($('<h3 class="mt-5 text-center"></h3>').html('No Order History!'));
+                    }
+                }
+            })
+        })
+    </script>
+    <style>
+        #seats li {
+            font-weight: bold;
+            text-align: center;
+            border: 1px solid #d3d3d3;
+            background: #f7f7f7;
+        }
+    </style>
+</head>
+<body>
+<div class='container-fluid'>
+    <nav class='row navbar fixed-top navbar-expand-lg navbar-dark' style='background-color: #000000;'>
+        <a class=' col-2 navbar-brand' href='/'>
+            <img src='image/UGA.png' style='width: 4vh;height: 4vh;' class='d-inline-block align-top'> CSCI 6050 Movie
+            Booking
+        </a>
+        <div class='col-2 offset-3'>
+            <p class='h2' style='color: white'>Order</p>
+        </div>
+        <div id="user" class="col-1 offset-3">
+            <!--            <a class="btn btn-primary" type="button" href="login">Login</a>-->
+        </div>
+    </nav>
+</div>
+<div class="container" style="min-height: 70vh;margin-top:10vh">
+    <div id="content">
+        <!--        <div class="card">-->
+        <!--            <div class="card-body">-->
+        <!--                <div class="card-title" style="display: flex;justify-content: space-between">-->
+        <!--                    <h4>-->
+        <!--                        Title-->
+        <!--                    </h4>-->
+        <!--                    <h4>-->
+        <!--                        Order time:Fir,25,May,2022 15:34:54-->
+        <!--                    </h4>-->
+        <!--                </div>-->
+        <!--                <div class="row">-->
+        <!--                    <div class="col-2">-->
+        <!--                        <img class="w-100" src="image/Poster1.png">-->
+        <!--                    </div>-->
+        <!--                    <div class="col-10">-->
+        <!--                        <div class="row">-->
+        <!--                            <div class="col-8">-->
+        <!--                                <h5>Adult:2 Senior:1 Child:1</h5>-->
+        <!--                                <h5>ShowTime:Fir,28,May,2022 15:34:54</h5>-->
+        <!--                                <h5>Payment Card: .... 5544</h5>-->
+        <!--                                <h5>Billing Address:lksldkglagljgj</h5>-->
+        <!--                            </div>-->
+        <!--                            <div class="col-4">-->
+        <!--                                <h5>Ticket Number:4</h5>-->
+        <!--                                <h5>Seat:</h5>-->
+        <!--                                <ul id="seats" style="min-height: 7rem;max-height: 7rem;overflow-y: auto;">-->
+        <!--                                    <li class="w-75 mt-1 mb-1">-->
+        <!--                                        Row4Seats5-->
+        <!--                                    </li>-->
+        <!--                                    <li>-->
+        <!--                                        Row4Seats6-->
+        <!--                                    </li>-->
+        <!--                                    <li>-->
+        <!--                                        Row4Seats7-->
+        <!--                                    </li>-->
+        <!--                                    <li>-->
+        <!--                                        Row4Seats8-->
+        <!--                                    </li>-->
+        <!--                                </ul>-->
+        <!--                            </div>-->
+        <!--                        </div>-->
+        <!--                        <div class='dropdown-divider'></div>-->
+        <!--                        <h5 style="display: flex;justify-content: right;color: red">-->
+        <!--                            Total: $50.23-->
+        <!--                        </h5>-->
+        <!--                    </div>-->
+        <!--                </div>-->
+        <!--            </div>-->
+        <!--        </div>-->
+    </div>
+</div>
+<div id="footer" class="container-fluid " style="background: black; color: white; margin-top: 50px;padding: 40px">
+    <div class="container">
+        <div class="row text-center">
+            <div class="col-4">
+                <a>Conditions of Use</a>
+            </div>
+
+            <div class="col-4">
+                <a>Privacy & Policy</a>
+            </div>
+
+            <div class="col-4">
+                <a>Press Room</a>
+            </div>
+        </div>
+        <div class="row copyright-bottom text-center">
+            <div class=" col-12 text-center">
+                <p>© 2022 Cinema E-Booking by CSCI 6050 Team B6</p>
+            </div>
+        </div>
+
+    </div>
+</div>
+</body>
+</html>
